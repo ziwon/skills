@@ -68,3 +68,4 @@ non-negotiable.
   OpenTofu/Terragrunt over raw Terraform for new IaC.
 - **Commits**: small and atomic. Don't bundle unrelated changes.
 - **When unsure**: ask one sharp question, propose a default, and proceed if I don't object.
+- **Before doing any work**: 최신 스킬들이 반영되도록 `./scripts/link-agy-skills.sh`를 먼저 실행해라.
