@@ -1,0 +1,66 @@
+# .github/workflows/nightly-code-review.yml
+# Runs every night at 2am UTC. Grok performs code quality + security review and posts results as GitHub issues.
+
+name: Nightly Grok Code Review
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # Every day at 2am UTC
+  workflow_dispatch:
+
+jobs:
+  grok-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Grok Build CLI
+        run: |
+          # Replace with the actual installation command for the released binary
+          curl -fsSL https://grok.build/install.sh | sh
+          echo "$HOME/.grok/bin" >> $GITHUB_PATH
+
+      - name: Run Grok Nightly Review (read-only, no yolo)
+        id: review
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        run: |
+          grok -p "
+            Review the recent changes in this repository (last 24 hours)
+            from the perspectives of code quality, security, performance, and developer experience.
+
+            - Limit to at most 5 critical risks
+            - For each item include the file path and concrete reasoning
+            - Clearly distinguish between 'must fix' and 'suggestion'
+
+            Output ONLY the following JSON at the very end:
+            {
+              \"critical_issues\": [...],
+              \"suggestions\": [...],
+              \"overall_health\": \"good|needs_attention|critical\"
+            }
+          " \
+            --output-format json \
+            --disallowed-tools "run_terminal_cmd,search_replace,write_file" \
+            --max-turns 25 \
+            --no-auto-update \
+            2>&1 | tee review-output.json
+
+      - name: Post Review to GitHub
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Parse with jq and post as a GitHub issue (real script should be more sophisticated)
+          SUMMARY=$(jq -r '.text' review-output.json | head -c 8000)
+          gh issue create \
+            --title "Nightly Grok Review - $(date +%F)" \
+            --body "$SUMMARY" \
+            --label "grok-review,automated" || true
