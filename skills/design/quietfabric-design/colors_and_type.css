@@ -1,0 +1,143 @@
+/* ============================================================
+   QuietFabric — colors_and_type.css
+   Canonical design tokens (color, type, spacing, radius, motion)
+   + semantic type roles. Import fonts/fonts.css before this file.
+
+   Reference: restack-ai/quite-fabric DESIGN.md + uploaded
+   quietfabric-design-system.html. Dark is canonical; light is a
+   documentation / specimen mode (swatches stay canonical, only
+   text contrast shifts).
+   ============================================================ */
+
+:root,
+[data-theme="dark"] {
+  /* ── Core palette (canonical dark) ─────────────────────── */
+  --canvas:           #05070B;   /* primary background        */
+  --canvas-soft:      #090D14;   /* section background        */
+  --surface-1:        #0D111A;   /* cards & panels            */
+  --surface-2:        #121826;   /* elevated cards            */
+  --surface-3:        #182033;   /* active / selected panels  */
+  --hairline:         #222A3A;   /* borders & dividers        */
+  --hairline-strong:  #33405A;   /* focused borders           */
+  --ink:              #F4F7FA;   /* primary text              */
+  --ink-muted:        #B8C2D0;   /* secondary text            */
+  --ink-subtle:       #7F8A9B;   /* tertiary text             */
+  --ink-faint:        #4F5B6E;   /* disabled / meta text      */
+
+  /* ── Brand accents ─────────────────────────────────────── */
+  --fabric-blue:   #6E8BFF;      /* primary CTA, links, focus */
+  --quiet-cyan:    #53D0C5;      /* network / fabric highlight */
+  --deep-violet:   #8B6DFF;      /* AI / model accent          */
+  --signal-green:  #3DDC97;      /* healthy status             */
+  --event-amber:   #F5B756;      /* warning / event state      */
+  --fault-red:     #FF6B7A;      /* error state                */
+
+  /* accent text colors — bright variants are legible on dark */
+  --cyan-text:    var(--quiet-cyan);
+  --green-text:   var(--signal-green);
+  --amber-text:   var(--event-amber);
+  --red-text:     var(--fault-red);
+  --link:         var(--fabric-blue);
+
+  /* ── Signal-flow gradients (use sparingly) ─────────────── */
+  --gradient-signal-flow:
+    radial-gradient(circle at 20% 20%, rgba(83,208,197,0.20), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(110,139,255,0.22), transparent 32%),
+    radial-gradient(circle at 50% 90%, rgba(139,109,255,0.18), transparent 36%);
+  --fabric-gradient:
+    linear-gradient(135deg, var(--fabric-blue), var(--quiet-cyan) 52%, var(--deep-violet));
+  --route-line:
+    linear-gradient(90deg, var(--quiet-cyan), var(--fabric-blue), var(--deep-violet));
+
+  /* ── Type families ─────────────────────────────────────── */
+  --font-sans: "Pretendard","Pretendard Variable",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-mono: "JetBrains Mono","SF Mono",ui-monospace,"Geist Mono",monospace;
+
+  /* ── Type scale (size / weight / line-height / tracking) ── */
+  --t-display-xl: 600 72px/1.05 var(--font-sans);
+  --t-display-lg: 600 56px/1.08 var(--font-sans);
+  --t-display-md: 600 40px/1.15 var(--font-sans);
+  --t-headline:   600 28px/1.25 var(--font-sans);
+  --t-title:      500 20px/1.35 var(--font-sans);
+  --t-body-lg:    400 18px/1.65 var(--font-sans);
+  --t-body:       400 16px/1.65 var(--font-sans);
+  --t-body-sm:    400 14px/1.55 var(--font-sans);
+  --t-caption:    400 12px/1.45 var(--font-sans);
+
+  --track-display-xl: -2.6px;
+  --track-display-lg: -2.0px;
+  --track-display-md: -1.2px;
+  --track-headline:   -0.6px;
+  --track-title:      -0.2px;
+  --track-eyebrow:     0.8px;
+
+  /* ── Radii ─────────────────────────────────────────────── */
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px; --r-full: 9999px;
+
+  /* ── Spacing (4px base) ────────────────────────────────── */
+  --sp-xxs: 4px;  --sp-xs: 8px;  --sp-sm: 12px; --sp-md: 16px;
+  --sp-lg: 24px;  --sp-xl: 32px; --sp-2xl: 48px; --sp-3xl: 64px;
+  --sp-section: 96px; --sp-hero: 144px;
+
+  /* ── Layout widths ─────────────────────────────────────── */
+  --w-content: 1200px; --w-reading: 760px; --w-doc: 960px; --w-dash: 1280px;
+
+  /* ── Motion ────────────────────────────────────────────── */
+  --t-fast: 120ms; --t-base: 180ms; --t-slow: 320ms;
+  --ease: cubic-bezier(0.4, 0.0, 0.2, 1);
+
+  /* ── Elevation (quiet, low-contrast) ───────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.40);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.40);
+  --shadow-lg: 0 24px 64px rgba(0,0,0,0.50);
+  --glow-cyan: 0 0 12px rgba(83,208,197,0.55);
+  --glow-blue: 0 0 0 3px rgba(110,139,255,0.26);
+}
+
+/* ── Light specimen mode ──────────────────────────────────
+   Documentation mode. Swatches stay canonical; text strengthens. */
+[data-theme="light"] {
+  --canvas:           #F6F8FB;
+  --canvas-soft:      #EEF1F6;
+  --surface-1:        #FFFFFF;
+  --surface-2:        #F3F6FA;
+  --surface-3:        #E8EDF4;
+  --hairline:         #DCE3EC;
+  --hairline-strong:  #BFC9D8;
+  --ink:              #111827;
+  --ink-muted:        #334155;
+  --ink-subtle:       #5A687A;
+  --ink-faint:        #8A96A6;
+  --cyan-text:  #168F88;
+  --green-text: #16845F;
+  --amber-text: #9A6100;
+  --red-text:   #C2334A;
+  --gradient-signal-flow:
+    radial-gradient(circle at 20% 20%, rgba(83,208,197,0.12), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(110,139,255,0.14), transparent 32%),
+    radial-gradient(circle at 50% 90%, rgba(139,109,255,0.10), transparent 36%);
+  --shadow-sm: 0 1px 2px rgba(16,24,40,0.06);
+  --shadow-md: 0 8px 24px rgba(16,24,40,0.08);
+  --shadow-lg: 0 24px 64px rgba(16,24,40,0.10);
+}
+
+/* ============================================================
+   SEMANTIC TYPE ROLES
+   Apply directly or copy the rules into a scoped context.
+   ============================================================ */
+.qf-display-xl { font: var(--t-display-xl); letter-spacing: var(--track-display-xl); color: var(--ink); }
+.qf-display-lg { font: var(--t-display-lg); letter-spacing: var(--track-display-lg); color: var(--ink); }
+.qf-display-md { font: var(--t-display-md); letter-spacing: var(--track-display-md); color: var(--ink); }
+.qf-headline   { font: var(--t-headline);   letter-spacing: var(--track-headline);   color: var(--ink); }
+.qf-title      { font: var(--t-title);      letter-spacing: var(--track-title);      color: var(--ink); }
+.qf-body-lg    { font: var(--t-body-lg);    color: var(--ink-muted); }
+.qf-body       { font: var(--t-body);       color: var(--ink-muted); }
+.qf-body-sm    { font: var(--t-body-sm);    color: var(--ink-subtle); }
+.qf-caption    { font: var(--t-caption);    color: var(--ink-subtle); }
+.qf-eyebrow {
+  font: var(--t-caption); font-weight: 600; letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase; color: var(--cyan-text); font-family: var(--font-mono);
+}
+.qf-mono { font-family: var(--font-mono); font-size: 13px; line-height: 1.55; color: var(--ink-muted); }
+.qf-link { color: var(--link); text-decoration: none; }
+.qf-link:hover { text-decoration: underline; }

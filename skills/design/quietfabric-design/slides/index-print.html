@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuietFabric — AI Infrastructure Architecture Review</title>
+<link rel="stylesheet" href="deck.css">
+<style>
+  html, body { margin: 0; background: #000; }
+  /* theme toggle — lives OUTSIDE the scaled stage */
+  #themeToggle { position: fixed; top: 16px; right: 18px; z-index: 9999; display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(13,17,26,0.82); border: 1px solid #33405A; color: #B8C2D0; border-radius: 9999px;
+    padding: 8px 14px; font: 500 13px/1 "JetBrains Mono", monospace; cursor: pointer; backdrop-filter: blur(8px); }
+  #themeToggle:hover { color: #F4F7FA; border-color: #53D0C5; }
+  #themeToggle .dot { width: 7px; height: 7px; border-radius: 50%; background: #53D0C5; box-shadow: 0 0 8px #53D0C5; }
+</style>
+</head>
+<body>
+<button id="themeToggle"><span class="dot"></span><span id="themeLabel">dark</span></button>
+
+<deck-stage width="1920" height="1080">
+
+  <!-- 01 · Cover -->
+  <section data-label="Cover">
+    <div class="slide glow cover">
+      <div>
+        <div class="eyebrow">AI Infrastructure · Architecture Review</div>
+        <h1 style="margin-top:28px">The fabric beneath<br>intelligent systems.</h1>
+        <p class="lead">A calm, end-to-end review of the QuietFabric platform: topology, performance, reliability, and the proposal for the next phase.</p>
+        <div class="meta">
+          <div><b>FY26 · Q2</b>quarterly review</div>
+          <div><b>Platform Eng</b>prepared by</div>
+          <div><b>Confidential</b>internal</div>
+        </div>
+      </div>
+      <div data-viz="cover"></div>
+    </div>
+  </section>
+
+  <!-- 02 · Agenda -->
+  <section data-label="Agenda">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Agenda</span></div>
+        <div class="s-title">Five things we'll cover</div>
+        <div class="grid g2" style="margin-top:80px; gap:36px 80px">
+          <div class="layer"><div class="ic" data-ico="grid"></div><div><div class="lt">01 · Context</div><div class="ld">Where the platform stands today</div></div></div>
+          <div class="layer"><div class="ic" data-ico="activity"></div><div><div class="lt">02 · Performance</div><div class="ld">Latency, throughput, utilization</div></div></div>
+          <div class="layer"><div class="ic" data-ico="network"></div><div><div class="lt">03 · Architecture</div><div class="ld">Routes, fabric, model serving</div></div></div>
+          <div class="layer"><div class="ic" data-ico="shield"></div><div><div class="lt">04 · Reliability</div><div class="ld">SLOs, error budget, failure modes</div></div></div>
+          <div class="layer"><div class="ic" data-ico="route"></div><div><div class="lt">05 · Roadmap</div><div class="ld">Capacity plan, cost, recommendation</div></div></div>
+          <div class="layer" style="border-style:dashed; opacity:0.7"><div class="ic" data-ico="clock"></div><div><div class="lt">Q &amp; A</div><div class="ld">Discussion &amp; decisions</div></div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>AI Infrastructure Architecture Review</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 03 · Divider Context -->
+  <section data-label="01 Context">
+    <div class="slide glow divider"><div class="pad divider">
+      <div class="dnum">01</div>
+      <div class="dtitle">Context</div>
+      <div class="ddesc">Where the platform stands today — scope, scale, and the systems beneath modern intelligence.</div>
+    </div>
+    <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span class="num" data-num></span></div></div>
+  </section>
+
+  <!-- 04 · Executive summary -->
+  <section data-label="Executive summary">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Executive summary</span><span class="pill ok" style="margin-left:auto"><span class="ind"></span>all routes healthy</span></div>
+        <div class="s-title">The platform is reliable, and approaching capacity</div>
+        <div class="grid g4" style="margin-top:72px">
+          <div class="tile"><div class="val">99.95<span class="u">%</span></div><div class="lab">route availability</div><div class="delta up">▲ within SLO</div></div>
+          <div class="tile"><div class="val">38<span class="u">ms</span></div><div class="lab">TTFT p50</div><div class="delta up">▲ 6% vs last q</div></div>
+          <div class="tile"><div class="val">71<span class="u">%</span></div><div class="lab">GPU utilization</div><div class="delta down">▼ headroom shrinking</div></div>
+          <div class="tile"><div class="val">$1.2<span class="u">M</span></div><div class="lab">quarterly spend</div><div class="delta up">▲ 14% vs last q</div></div>
+        </div>
+        <ul class="qlist" style="margin-top:64px">
+          <li><b>Reliability is solid</b> — we held SLO across three regions with no Sev-1 incidents this quarter.</li>
+          <li><b>Capacity is the risk</b> — utilization is trending toward saturation; we propose a Phase-1 pool expansion.</li>
+        </ul>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Executive summary</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 05 · System at a glance -->
+  <section data-label="System at a glance">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">System at a glance</span></div>
+        <div class="s-title">One inference route, four stages</div>
+        <div class="route" style="margin-top:64px">
+          <div class="track">
+            <span class="line"></span><span class="signal"></span>
+            <div class="node"><div class="nm">edge-ingress</div><div class="mt">kr · 2.1ms</div></div>
+            <div class="node"><div class="nm">fabric-router</div><div class="mt">400G · ecn</div></div>
+            <div class="node"><div class="nm">gpu-pool</div><div class="mt">b200 ×8</div></div>
+            <div class="node"><div class="nm">token-stream</div><div class="mt">sse · live</div></div>
+          </div>
+        </div>
+        <div class="grid g3" style="margin-top:48px">
+          <div class="card soft"><div class="kicker">scale</div><div style="font-size:34px;font-weight:600;margin-top:14px">3 regions · 6 pools</div><div style="font-size:26px;color:var(--ink-subtle);margin-top:10px">48 GPUs serving production traffic</div></div>
+          <div class="card soft"><div class="kicker">workload</div><div style="font-size:34px;font-weight:600;margin-top:14px">dual-encoder + VLM</div><div style="font-size:26px;color:var(--ink-subtle);margin-top:10px">1.2k rps peak, streaming tokens</div></div>
+          <div class="card soft"><div class="kicker">uptime</div><div style="font-size:34px;font-weight:600;margin-top:14px">142d 06h</div><div style="font-size:26px;color:var(--ink-subtle);margin-top:10px">since last route reschedule</div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>System at a glance</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 06 · Current architecture stack -->
+  <section data-label="Current architecture">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Current architecture</span></div>
+        <div class="s-title">The serving stack, top to bottom</div>
+        <div class="stack" style="margin-top:64px">
+          <div class="layer"><div class="ic" data-ico="route"></div><div class="lt">Edge &amp; ingress</div><div class="ld" style="margin-left:20px">TLS termination · regional routing</div><span class="tag">2.1ms p50</span></div>
+          <div class="layer"><div class="ic" data-ico="network"></div><div class="lt">Fabric &amp; network</div><div class="ld" style="margin-left:20px">cilium · sr-iov · multus · 400G</div><span class="tag">ecn</span></div>
+          <div class="layer"><div class="ic" data-ico="cpu"></div><div class="lt">GPU pools</div><div class="ld" style="margin-left:20px">nvidia b200 ×8 · rail-optimized</div><span class="tag">8/8 scheduled</span></div>
+          <div class="layer"><div class="ic" data-ico="box"></div><div class="lt">Model serving</div><div class="ld" style="margin-left:20px">paged kv-cache · fp8 · continuous batching</div><span class="tag">126 tok/s</span></div>
+          <div class="layer"><div class="ic" data-ico="database"></div><div class="lt">Storage &amp; vectors</div><div class="ld" style="margin-left:20px">object-native training plane · vector ingest</div><span class="tag">jp · kr</span></div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Current architecture</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 07 · Divider Performance -->
+  <section data-label="02 Performance">
+    <div class="slide glow divider"><div class="pad divider">
+      <div class="dnum">02</div>
+      <div class="dtitle">Performance</div>
+      <div class="ddesc">How the fabric behaves under load — latency, throughput, and where headroom is going.</div>
+    </div>
+    <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span class="num" data-num></span></div></div>
+  </section>
+
+  <!-- 08 · Latency over time (line) -->
+  <section data-label="Latency over time">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Performance · latency</span>
+          <span class="legend" style="margin-left:auto"><span><i style="background:#6E8BFF"></i>TTFT p50</span><span><i style="background:#8B6DFF"></i>TTFT p95</span></span></div>
+        <div class="s-title">Time-to-first-token, last 12 hours</div>
+        <div class="card soft" style="margin-top:40px; padding:32px 36px"><div class="chartbox" data-chart="latency"></div></div>
+        <div style="display:flex; gap:64px; margin-top:26px; font-size:25px; color:var(--ink-muted)">
+          <div><b style="color:var(--ink)">p50 holds at 38ms</b> — comfortably inside the 60ms target.</div>
+          <div><b style="color:var(--ink)">p95 spikes during bursts</b> — driven by kv-cache pressure, not the network.</div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Performance · latency</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 09 · Throughput by pool (bar) -->
+  <section data-label="Throughput by pool">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Performance · throughput</span></div>
+        <div class="s-title">Sustained throughput by GPU pool</div>
+        <div class="card soft" style="margin-top:56px; padding:44px 40px"><div class="chartbox" data-chart="pools"></div></div>
+        <ul class="qlist" style="margin-top:40px">
+          <li><b>B200 pools lead</b> at 126 tok/s — the L40 pool is a long tail we should retire or repurpose.</li>
+        </ul>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Performance · throughput</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 10 · Utilization & capacity tiles -->
+  <section data-label="Utilization & capacity">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Performance · capacity</span></div>
+        <div class="s-title">Utilization is climbing across every dimension</div>
+        <div class="grid g4" style="margin-top:72px">
+          <div class="tile"><div class="val">71<span class="u">%</span></div><div class="lab">GPU utilization</div><div class="spark" data-spark="[60,64,62,68,66,72,70,71]"></div></div>
+          <div class="tile"><div class="val">74<span class="u">%</span></div><div class="lab">kv-cache occupancy</div><div class="spark" data-spark="[52,58,60,64,68,70,72,74]"></div></div>
+          <div class="tile"><div class="val">62<span class="u">%</span></div><div class="lab">fabric bandwidth</div><div class="spark" data-spark="[40,44,48,50,54,58,60,62]"></div></div>
+          <div class="tile"><div class="val">24<span class="u">q</span></div><div class="lab">peak queue depth</div><div class="spark" data-spark="[12,16,14,20,18,22,21,24]"></div></div>
+        </div>
+        <div class="card" style="margin-top:56px; border-color:var(--hairline-strong); background:linear-gradient(180deg, rgba(245,183,86,0.08), transparent), var(--surface-1)">
+          <div style="display:flex; gap:24px; align-items:center"><span class="pill warn"><span class="ind"></span>capacity watch</span>
+          <div style="font-size:30px; color:var(--ink-muted)">At current growth, kv-cache occupancy crosses 85% in <b style="color:var(--ink)">~7 weeks</b> — the trigger for Phase-1 expansion.</div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Performance · capacity</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 11 · Divider Architecture -->
+  <section data-label="03 Architecture">
+    <div class="slide glow divider"><div class="pad divider">
+      <div class="dnum">03</div>
+      <div class="dtitle">Architecture</div>
+      <div class="ddesc">The route, the fabric, and the serving stack — and why each decision was made.</div>
+    </div>
+    <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span class="num" data-num></span></div></div>
+  </section>
+
+  <!-- 12 · Inference route detail -->
+  <section data-label="Inference route">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Architecture · route</span></div>
+        <div class="s-title">Live inference route, with latency budgets</div>
+        <div class="route" style="margin-top:64px; padding:56px 48px 48px">
+          <div class="track">
+            <span class="line"></span><span class="signal"></span>
+            <div class="node"><div class="nm">edge-ingress</div><div class="mt">budget 3ms · act 2.1ms</div></div>
+            <div class="node"><div class="nm">fabric-router</div><div class="mt">budget 1ms · ecn</div></div>
+            <div class="node"><div class="nm">gpu-pool</div><div class="mt">schedule · b200 ×8</div></div>
+            <div class="node"><div class="nm">token-stream</div><div class="mt">first token 38ms</div></div>
+          </div>
+        </div>
+        <div class="grid g3" style="margin-top:48px">
+          <div class="tile"><div class="val">38<span class="u">ms</span></div><div class="lab">end-to-end TTFT p50</div></div>
+          <div class="tile"><div class="val">126<span class="u">tok/s</span></div><div class="lab">streaming throughput</div></div>
+          <div class="tile"><div class="val">142<span class="u">d</span></div><div class="lab">route stability</div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Architecture · route</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 13 · Network fabric + terminal -->
+  <section data-label="Network fabric">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Architecture · fabric</span></div>
+        <div class="s-title">The network is part of the execution graph</div>
+        <div class="grid g2" style="margin-top:56px; align-items:start">
+          <table class="qtable">
+            <thead><tr><th>component</th><th>configuration</th></tr></thead>
+            <tbody>
+              <tr><td><b>Cluster fabric</b></td><td class="mono">cilium · sr-iov · multus</td></tr>
+              <tr><td><b>Bandwidth</b></td><td class="mono">400 Gbps · rail-optimized</td></tr>
+              <tr><td><b>Congestion</b></td><td class="mono">ecn · credit-flow</td></tr>
+              <tr><td><b>Overlay</b></td><td class="mono">headscale · 4 namespaces</td></tr>
+              <tr><td><b>Region</b></td><td class="mono">gcp asia-northeast3</td></tr>
+            </tbody>
+          </table>
+          <div class="term">
+            <div class="bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="nm">fabric@control-plane: ~</span></div>
+            <div class="body">
+              <span class="p">$</span> fabric route inspect inference-edge<br>
+              <span class="dim"># resolving topology across 3 namespaces…</span><br>
+              &nbsp;&nbsp;ingress.kr&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">healthy</span>&nbsp;&nbsp;p50 2.1ms<br>
+              &nbsp;&nbsp;router.fabric&nbsp;<span class="ok">healthy</span>&nbsp;&nbsp;credit-fc nominal<br>
+              &nbsp;&nbsp;pool.gpu-b200&nbsp;<span class="ok">healthy</span>&nbsp;&nbsp;8/8 scheduled<br>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Architecture · fabric</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 14 · Trade-offs -->
+  <section data-label="Key trade-offs">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Architecture · trade-offs</span></div>
+        <div class="s-title">Every choice bought something, and cost something</div>
+        <div class="grid g2" style="margin-top:64px; gap:40px">
+          <div class="card"><div class="kicker" style="color:var(--green-text)">what we gained</div>
+            <ul class="qlist" style="margin-top:28px">
+              <li>Rail-optimized placement cut <b>all-reduce tail latency</b>.</li>
+              <li>Paged kv-cache raised <b>effective batch size</b>.</li>
+              <li>ECN keeps queues <b>shallow under load</b>.</li>
+            </ul>
+          </div>
+          <div class="card"><div class="kicker" style="color:var(--amber-text)">what it cost</div>
+            <ul class="qlist" style="margin-top:28px">
+              <li>Less scheduler freedom under <b>fragmentation</b>.</li>
+              <li>Indirection added on the <b>hot path</b>.</li>
+              <li>Occasional <b>throughput dips</b> during bursts.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Architecture · trade-offs</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 15 · Divider Reliability -->
+  <section data-label="04 Reliability">
+    <div class="slide glow divider"><div class="pad divider">
+      <div class="dnum">04</div>
+      <div class="dtitle">Reliability</div>
+      <div class="ddesc">SLOs, the error budget, and the way this system actually fails — quietly, at the edges.</div>
+    </div>
+    <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span class="num" data-num></span></div></div>
+  </section>
+
+  <!-- 16 · SLOs & error budget -->
+  <section data-label="SLOs & error budget">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Reliability · SLOs</span><span class="pill ok" style="margin-left:auto"><span class="ind"></span>within budget</span></div>
+        <div class="s-title">We held every SLO this quarter</div>
+        <div class="grid g3" style="margin-top:64px">
+          <div class="tile"><div class="val">99.95<span class="u">%</span></div><div class="lab">availability · target 99.9%</div><div class="delta up">▲ met</div></div>
+          <div class="tile"><div class="val">38<span class="u">ms</span></div><div class="lab">TTFT p50 · target &lt;60ms</div><div class="delta up">▲ met</div></div>
+          <div class="tile"><div class="val">63<span class="u">%</span></div><div class="lab">error budget remaining</div><div class="delta up">▲ healthy</div></div>
+        </div>
+        <table class="qtable" style="margin-top:56px">
+          <thead><tr><th>SLO</th><th>target</th><th>actual</th><th>status</th></tr></thead>
+          <tbody>
+            <tr><td><b>Route availability</b></td><td class="mono">99.9%</td><td class="mono">99.95%</td><td><span class="pill ok" style="font-size:20px;padding:5px 14px"><span class="ind"></span>met</span></td></tr>
+            <tr><td><b>TTFT p95</b></td><td class="mono">&lt; 120ms</td><td class="mono">96ms</td><td><span class="pill ok" style="font-size:20px;padding:5px 14px"><span class="ind"></span>met</span></td></tr>
+            <tr><td><b>Token stream uptime</b></td><td class="mono">99.5%</td><td class="mono">99.7%</td><td><span class="pill ok" style="font-size:20px;padding:5px 14px"><span class="ind"></span>met</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Reliability · SLOs</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 17 · Failure modes -->
+  <section data-label="Failure modes">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Reliability · failure modes</span></div>
+        <div class="s-title">The risk isn't a crash — it's silent backpressure</div>
+        <div class="grid g2" style="margin-top:64px; gap:40px; align-items:start">
+          <ul class="qlist">
+            <li><b>Silent backpressure</b> — pool saturates, queue climbs, latency degrades while liveness still reads healthy.</li>
+            <li><b>kv-cache exhaustion</b> — occupancy crosses 85%, evictions cascade onto the hot path.</li>
+            <li><b>Rail fragmentation</b> — scheduler can't co-locate tensor-parallel ranks, collectives slow.</li>
+          </ul>
+          <div class="card" style="border-color:var(--hairline-strong)">
+            <div class="kicker">mitigation</div>
+            <div style="font-size:32px; font-weight:600; margin-top:18px; line-height:1.3">Alert on the <span style="color:var(--quiet-cyan)">slope</span>, not the threshold.</div>
+            <p style="font-size:27px; color:var(--ink-muted); margin-top:20px; line-height:1.5">By the time a threshold trips, the route has been degrading for minutes. We now page on rate-of-change of queue depth and TTFT.</p>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Reliability · failure modes</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 18 · Divider Roadmap -->
+  <section data-label="05 Roadmap">
+    <div class="slide glow divider"><div class="pad divider">
+      <div class="dnum">05</div>
+      <div class="dtitle">Roadmap<br>&amp; proposal</div>
+      <div class="ddesc">The capacity plan, the cost model, and the decision we're asking for.</div>
+    </div>
+    <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span class="num" data-num></span></div></div>
+  </section>
+
+  <!-- 19 · Capacity roadmap (line) -->
+  <section data-label="Capacity roadmap">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Roadmap · capacity</span>
+          <span class="legend" style="margin-left:auto"><span><i style="background:#53D0C5"></i>capacity</span><span><i style="background:#6E8BFF"></i>projected demand</span></span></div>
+        <div class="s-title">Demand crosses capacity in Q3 without action</div>
+        <div class="card soft" style="margin-top:56px; padding:44px 40px"><div class="chartbox" data-chart="demand"></div></div>
+        <ul class="qlist" style="margin-top:36px">
+          <li><b>Phase-1 expansion</b> (+2 B200 pools) restores headroom through FY26 and is the recommendation that follows.</li>
+        </ul>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Roadmap · capacity</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 20 · Cost model (bar) -->
+  <section data-label="Cost model">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Roadmap · cost</span></div>
+        <div class="s-title">Where the quarterly spend goes</div>
+        <div class="grid g2" style="margin-top:56px; align-items:center; gap:56px">
+          <div class="card soft" style="padding:44px 40px"><div class="chartbox" data-chart="cost"></div></div>
+          <table class="qtable">
+            <thead><tr><th>component</th><th>quarter</th><th>share</th></tr></thead>
+            <tbody>
+              <tr><td><b>GPU compute</b></td><td class="mono">$720k</td><td class="mono">60%</td></tr>
+              <tr><td><b>Network &amp; fabric</b></td><td class="mono">$180k</td><td class="mono">15%</td></tr>
+              <tr><td><b>Storage</b></td><td class="mono">$132k</td><td class="mono">11%</td></tr>
+              <tr><td><b>Egress</b></td><td class="mono">$96k</td><td class="mono">8%</td></tr>
+              <tr><td><b>Ops</b></td><td class="mono">$72k</td><td class="mono">6%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Roadmap · cost</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 21 · Recommendation (ADR) -->
+  <section data-label="Recommendation">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Roadmap · decision</span><span class="pill" style="margin-left:auto; border-color:var(--hairline-strong); color:var(--ink-muted)">ADR-014</span></div>
+        <div class="s-title">Recommendation: approve Phase-1 expansion</div>
+        <div class="card soft" style="margin-top:56px; padding:48px">
+          <div class="grid g2" style="gap:56px">
+            <div>
+              <div class="kicker">decision</div>
+              <p style="font-size:32px; color:var(--ink); font-weight:500; margin-top:16px; line-height:1.4">Add <b style="color:var(--quiet-cyan)">2 B200 pools</b> in asia-northeast3, retire the L40 pool, and move kv-cache to fp8 fleet-wide.</p>
+              <div class="kicker" style="margin-top:40px">rationale</div>
+              <ul class="qlist" style="margin-top:18px; gap:16px">
+                <li>Restores headroom through FY26.</li>
+                <li>Retiring L40 offsets ~30% of the new cost.</li>
+              </ul>
+            </div>
+            <div>
+              <div class="kicker">impact</div>
+              <div class="grid g2" style="margin-top:18px; gap:20px">
+                <div class="tile" style="padding:26px"><div class="val" style="font-size:48px">+58<span class="u">%</span></div><div class="lab">capacity headroom</div></div>
+                <div class="tile" style="padding:26px"><div class="val" style="font-size:48px">+$240<span class="u">k</span></div><div class="lab">net quarterly cost</div></div>
+                <div class="tile" style="padding:26px"><div class="val" style="font-size:48px">6<span class="u">wk</span></div><div class="lab">to deploy</div></div>
+                <div class="tile" style="padding:26px"><div class="val" style="font-size:48px">low</div><div class="lab">rollout risk</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Roadmap · decision</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 22 · Risks & next steps -->
+  <section data-label="Risks & next steps">
+    <div class="slide">
+      <div class="pad">
+        <div class="s-head"><span class="eyebrow">Roadmap · next steps</span></div>
+        <div class="s-title">What happens after this review</div>
+        <div class="grid g2" style="margin-top:64px; gap:40px; align-items:start">
+          <div class="card"><div class="kicker">next steps</div>
+            <ul class="qlist" style="margin-top:28px">
+              <li><b>This week</b> — approve ADR-014, reserve capacity.</li>
+              <li><b>Weeks 1–4</b> — provision pools, validate rail placement.</li>
+              <li><b>Weeks 5–6</b> — canary, then promote fp8 kv-cache.</li>
+            </ul>
+          </div>
+          <div class="card"><div class="kicker" style="color:var(--amber-text)">open risks</div>
+            <ul class="qlist" style="margin-top:28px">
+              <li>B200 lead times could slip the timeline.</li>
+              <li>fp8 kv-cache needs a quality regression gate.</li>
+              <li>L40 retirement must not strand any tenant.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>Roadmap · next steps</span><span class="num" data-num></span></div>
+    </div>
+  </section>
+
+  <!-- 23 · Closing -->
+  <section data-label="Closing">
+    <div class="slide glow divider"><div class="pad" style="justify-content:center">
+      <div class="kicker">in closing</div>
+      <div class="big-quote" style="margin-top:28px">Invisible systems.<br><span class="accent">Visible intelligence.</span></div>
+      <p style="font-size:32px; color:var(--ink-muted); margin-top:40px; max-width:46ch; line-height:1.5">The platform is reliable today. Approve Phase-1 and it stays that way through FY26 — quietly, beneath everything we ship.</p>
+    </div>
+    <div class="foot"><span class="brand" data-brand></span><span class="grow"></span><span>platform-eng@quietfabric · #infra-review</span><span class="num" data-num></span></div></div>
+  </section>
+
+</deck-stage>
+
+<script>
+/* ============================================================
+   DATA-EDITABLE CHARTS — edit the numbers here, charts redraw.
+   ============================================================ */
+window.QF_DECK_DATA = {
+  latency: {
+    type: "line", area: true, unit: "ms", height: 380,
+    xLabels: ["00","02","","06","","10","","14","","18","","22"],
+    series: [
+      { name: "TTFT p50", color: "#6E8BFF", data: [40,38,42,37,44,39,38,40,37,41,38,38] },
+      { name: "TTFT p95", color: "#8B6DFF", data: [78,72,88,70,96,82,76,84,74,90,80,86] },
+    ],
+  },
+  pools: {
+    type: "bar", unit: "", color: "#6E8BFF",
+    colors: ["#6E8BFF","#6E8BFF","#53D0C5","#53D0C5","#4F5B6E"],
+    labels: ["b200-a","b200-b","h100-a","h100-b","l40-a"],
+    data: [126, 118, 98, 92, 54],
+  },
+  demand: {
+    type: "line", unit: "",
+    xLabels: ["Q1","Q2","Q3","Q4","Q1·27","Q2·27"],
+    series: [
+      { name: "capacity", color: "#53D0C5", data: [100,100,100,100,100,100] },
+      { name: "demand",   color: "#6E8BFF", data: [62,78,98,118,140,162] },
+    ],
+  },
+  cost: {
+    type: "bar", unit: "k", color: "#6E8BFF",
+    colors: ["#6E8BFF","#53D0C5","#8B6DFF","#3DDC97","#F5B756"],
+    labels: ["GPU","Network","Storage","Egress","Ops"],
+    data: [720, 180, 132, 96, 72],
+  },
+};
+</script>
+<script src="deck-stage.js"></script>
+<script src="deck-charts.js"></script>
+<script>
+/* inline brand mark, footer numbers, agenda/stack icons, theme toggle */
+(function () {
+  const MARK = '<svg class="mark" viewBox="0 0 32 32" fill="none"><line x1="7" y1="9" x2="20" y2="9" stroke="#33405A" stroke-width="1.5"/><line x1="20" y1="9" x2="13" y2="23" stroke="#33405A" stroke-width="1.5"/><circle cx="7" cy="9" r="3" fill="#6E8BFF"/><circle cx="20" cy="9" r="3" fill="#53D0C5"/><circle cx="13" cy="23" r="3" fill="#8B6DFF"/></svg>';
+  const ICONS = {
+    grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    network:'<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/>',
+    shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>',
+    route:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+    clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    cpu:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/>',
+    box:'<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+    database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  };
+  function iconSvg(n){return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||'')+'</svg>';}
+  document.querySelectorAll('[data-brand]').forEach(e=>e.innerHTML=MARK+'<span>QuietFabric</span>');
+  document.querySelectorAll('[data-ico]').forEach(e=>e.innerHTML=iconSvg(e.getAttribute('data-ico')));
+  // cover topology viz
+  const cv=document.querySelector('[data-viz="cover"]');
+  if(cv){cv.innerHTML='<div style="position:relative;aspect-ratio:4/3.2;background:linear-gradient(180deg,var(--surface-1),var(--canvas-soft));border:1px solid var(--hairline);border-radius:var(--r-xl);overflow:hidden">'+
+    '<div style="position:absolute;inset:0;opacity:0.5;background-image:linear-gradient(var(--hairline) 1px,transparent 1px),linear-gradient(90deg,var(--hairline) 1px,transparent 1px);background-size:64px 64px"></div>'+
+    '<svg viewBox="0 0 640 500" style="position:absolute;inset:0;width:100%;height:100%"><defs><linearGradient id="e" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#53D0C5"/><stop offset=".5" stop-color="#6E8BFF"/><stop offset="1" stop-color="#8B6DFF"/></linearGradient></defs>'+
+    '<line x1="120" y1="140" x2="360" y2="210" stroke="url(#e)" stroke-width="2" opacity="0.55"/><line x1="360" y1="210" x2="520" y2="330" stroke="url(#e)" stroke-width="2" opacity="0.55"/><line x1="230" y1="370" x2="360" y2="210" stroke="url(#e)" stroke-width="2" opacity="0.55"/><line x1="460" y1="110" x2="360" y2="210" stroke="url(#e)" stroke-width="2" opacity="0.55"/>'+
+    '<circle cx="120" cy="140" r="9" fill="#6E8BFF" stroke="#6E8BFF" stroke-width="2"/><circle cx="360" cy="210" r="11" fill="var(--canvas)" stroke="#53D0C5" stroke-width="2.5"/><circle cx="520" cy="330" r="9" fill="#53D0C5"/><circle cx="230" cy="370" r="8" fill="#8B6DFF"/><circle cx="460" cy="110" r="7" fill="#6E8BFF"/>'+
+    '<circle r="6" fill="#53D0C5"><animateMotion dur="3.4s" repeatCount="indefinite" path="M120,140 L360,210 L520,330"/></circle></svg>'+
+    '<div style="position:absolute;left:32px;bottom:28px;font-family:var(--font-mono);font-size:24px;color:var(--cyan-text)">fabric.route <span style="color:var(--ink-faint)">/ gpu-east-03</span></div>'+
+    '<div style="position:absolute;right:32px;bottom:28px;font-family:var(--font-mono);font-size:24px;color:var(--ink-subtle)">p95 18ms</div></div>';}
+  // footer slide numbers
+  const secs=[...document.querySelectorAll('deck-stage > section')];
+  const tot=secs.length;
+  secs.forEach((s,i)=>{const n=s.querySelector('[data-num]'); if(n) n.textContent=String(i+1).padStart(2,'0')+' / '+String(tot).padStart(2,'0');});
+  // theme toggle
+  const btn=document.getElementById('themeToggle'), lab=document.getElementById('themeLabel');
+  btn.addEventListener('click',()=>{const r=document.documentElement,n=r.getAttribute('data-theme')==='dark'?'light':'dark';r.setAttribute('data-theme',n);lab.textContent=n;});
+})();
+</script>
+
+<!-- ── Auto-print: hide chrome, wait for fonts + charts + deck-stage, then print ── -->
+<style>@media print { #themeToggle { display: none !important; } }</style>
+<script>
+(function () {
+  function ready() {
+    return customElements.get('deck-stage') &&
+      document.querySelectorAll('[data-chart] svg').length >= 4;
+  }
+  function whenReady(cb, tries) {
+    tries = tries || 0;
+    if (ready() || tries > 40) { cb(); return; }
+    setTimeout(function () { whenReady(cb, tries + 1); }, 100);
+  }
+  window.addEventListener('load', function () {
+    whenReady(function () {
+      var fontsDone = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+      fontsDone.then(function () {
+        setTimeout(function () { window.print(); }, 600);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

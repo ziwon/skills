@@ -15,8 +15,8 @@ the skill's invocation name.
 
 **Category**
 An organizational folder under `skills/` grouping skills by function — `engineering`,
-`productivity`, `misc`. Categories are for humans navigating the repo; they are not part of
-a skill's invocation name.
+`design`, `productivity`, `misc`. Categories are for humans navigating the repo; they are
+not part of a skill's invocation name.
 *Avoid*: bucket, namespace.
 
 **Template**

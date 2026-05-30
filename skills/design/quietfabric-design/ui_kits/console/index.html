@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuietFabric — Control Plane</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="qf-atmos" data-screen-label="Developer console / control plane">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="../icons.jsx"></script>
+<script type="text/babel" src="../charts.jsx"></script>
+<script type="text/babel">
+const { useState, useRef } = React;
+const Icon = window.QFIcon;
+
+const SERVICES = [
+  { id: "edge", name: "inference-edge", status: "green", st: "healthy", ver: "v2.14.0", rps: "1.2k", region: "kr" },
+  { id: "router", name: "fabric-router", status: "cyan", st: "streaming", ver: "v1.9.3", rps: "3.8k", region: "kr" },
+  { id: "embed", name: "embedding-svc", status: "green", st: "healthy", ver: "v0.7.1", rps: "640", region: "jp" },
+  { id: "vlm", name: "vlm-serving", status: "amber", st: "backpressure", ver: "v3.0.0-rc2", rps: "210", region: "kr" },
+  { id: "ingest", name: "vector-ingest", status: "green", st: "healthy", ver: "v1.2.0", rps: "88", region: "jp" },
+  { id: "gw", name: "token-gateway", status: "faint", st: "idle", ver: "v4.1.0", rps: "0", region: "kr" },
+];
+
+const BASE_LOGS = [
+  { ts: "14:02:11", lvl: "info", cls: "info", msg: <>resolving topology across <b>3</b> namespaces</> },
+  { ts: "14:02:11", lvl: "ok", cls: "ok", msg: <>ingress.kr <b>healthy</b> — p50 2.1ms</> },
+  { ts: "14:02:12", lvl: "ok", cls: "ok", msg: <>router.fabric <b>healthy</b> — credit-fc nominal</> },
+  { ts: "14:02:12", lvl: "info", cls: "info", msg: <>scheduling on pool <b>gpu-b200</b> (8 devices)</> },
+  { ts: "14:02:13", lvl: "warn", cls: "warn", msg: <>kv-cache at <b>74%</b> — enabling paged attention</> },
+  { ts: "14:02:14", lvl: "ok", cls: "ok", msg: <>route <b>inference-edge</b> stable — token-stream live</> },
+];
+const DEPLOY_STEPS = [
+  { p: 18, ts: "now", lvl: "info", cls: "info", msg: <>building image <b>inference-edge:v2.15.0</b></> },
+  { p: 44, ts: "now", lvl: "info", cls: "info", msg: <>pushing to registry — <b>asia-northeast3</b></> },
+  { p: 68, ts: "now", lvl: "info", cls: "info", msg: <>rolling out canary <b>10%</b> across gpu-b200</> },
+  { p: 88, ts: "now", lvl: "ok", cls: "ok", msg: <>canary healthy — TTFT <b>37ms</b>, promoting</> },
+  { p: 100, ts: "now", lvl: "ok", cls: "ok", msg: <>deploy complete — <b>v2.15.0</b> serving 100%</> },
+];
+
+function App() {
+  const [theme, setTheme] = useState("dark");
+  const [sel, setSel] = useState("edge");
+  const [tab, setTab] = useState("overview");
+  const [logs, setLogs] = useState(BASE_LOGS);
+  const [prog, setProg] = useState(0);
+  const [deploying, setDeploying] = useState(false);
+  const svc = SERVICES.find(s => s.id === sel);
+
+  const toggleTheme = () => { const t = theme === "dark" ? "light" : "dark"; setTheme(t); document.documentElement.setAttribute("data-theme", t); };
+
+  const deploy = () => {
+    if (deploying) return;
+    setDeploying(true); setProg(2); setTab("logs");
+    DEPLOY_STEPS.forEach((step, i) => setTimeout(() => {
+      setProg(step.p);
+      setLogs(l => [...l, step]);
+      if (i === DEPLOY_STEPS.length - 1) setTimeout(() => { setDeploying(false); setProg(0); }, 1400);
+    }, (i + 1) * 850));
+  };
+
+  return (
+    <div className="console">
+      <div className="cnav">
+        <div className="brand">
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+            <line x1="7" y1="9" x2="20" y2="9" stroke="#33405A" strokeWidth="1.5"/><line x1="20" y1="9" x2="13" y2="23" stroke="#33405A" strokeWidth="1.5"/>
+            <circle cx="7" cy="9" r="3" fill="#6E8BFF"/><circle cx="20" cy="9" r="3" fill="#53D0C5"/><circle cx="13" cy="23" r="3" fill="#8B6DFF"/>
+          </svg>
+          QuietFabric
+        </div>
+        <div className="ns"><Icon name="layers" size={13} /> prod · asia-northeast3 <Icon name="chevron" size={12} style={{transform:"rotate(90deg)"}} /></div>
+        <span className="grow"></span>
+        <div className="cmdk"><Icon name="search" size={13} /> Go to service or run command <kbd>⌘K</kbd></div>
+        <button className="btn btn-ghost" onClick={toggleTheme} style={{fontFamily:"var(--font-mono)",fontSize:12}}>{theme}</button>
+        <div className="av"></div>
+      </div>
+
+      <div className="cbody">
+        <div className="rail">
+          <div className="rh"><span className="t">services · {SERVICES.length}</span><span className="grow"></span><span className="add"><Icon name="box" size={14} /></span></div>
+          {SERVICES.map(s => (
+            <div key={s.id} className={"svc" + (sel === s.id ? " active" : "")} onClick={() => { setSel(s.id); setTab("overview"); }}>
+              <div className="top"><span className={"dot " + s.status}></span><span className="nm">{s.name}</span>
+                <span className="ver">{s.ver}</span></div>
+              <div className="meta"><span>{s.st}</span><span>{s.rps} rps</span><span>{s.region}</span></div>
+            </div>
+          ))}
+        </div>
+
+        <div className="detail">
+          <div className="dhead">
+            <span className={"dot " + svc.status} style={{marginTop:9,width:9,height:9}}></span>
+            <div>
+              <div className="ttl">{svc.name}</div>
+              <div className="sub">deployment / {svc.ver} · {svc.region} · {svc.rps} rps</div>
+            </div>
+            <span className="grow"></span>
+            <button className="btn btn-secondary"><Icon name="gitBranch" size={14} /> Rollback</button>
+            <button className="btn btn-primary" onClick={deploy}><Icon name="zap" size={14} color="#fff" /> {deploying ? "Deploying…" : "Deploy v2.15.0"}</button>
+          </div>
+
+          {(deploying || prog > 0) && (
+            <div className="deploybar">
+              <Icon name="route" size={16} color="var(--quiet-cyan)" />
+              <span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--ink-muted)",width:90}}>rolling out</span>
+              <div className="prog"><i style={{width:prog+"%"}}></i></div>
+              <span className="pct">{prog}%</span>
+            </div>
+          )}
+
+          <div className="tabs">
+            {["overview","logs","config","routes"].map(t => (
+              <div key={t} className={"tab" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>{t}</div>
+            ))}
+          </div>
+
+          {tab === "overview" && <>
+            <div className="kv-grid">
+              <div className="kv"><div className="k">TTFT p50</div><div className="v">38<span style={{fontSize:12,color:"var(--ink-subtle)"}}>ms</span></div></div>
+              <div className="kv"><div className="k">Throughput</div><div className="v">126<span style={{fontSize:12,color:"var(--ink-subtle)"}}> tok/s</span></div></div>
+              <div className="kv"><div className="k">GPU util</div><div className="v">71<span style={{fontSize:12,color:"var(--ink-subtle)"}}>%</span></div></div>
+            </div>
+            <div className="panel">
+              <div className="pt"><Icon name="activity" size={15} color="var(--quiet-cyan)" /> Request latency<span className="grow"></span>
+                <span style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--ink-faint)"}}>last 12h · ms</span></div>
+              <QFLineChart series={[{ data: [44,41,48,39,52,43,38,40,37,42,38,36], color: "#53D0C5" }]} unit="" height={210} area
+                xLabels={["","02","","06","","10","","14","","18","","22"]} />
+            </div>
+          </>}
+
+          {tab === "logs" && (
+            <div className="logstream">
+              <div className="lh"><span className="dot cyan"></span> {svc.name} · live tail <span style={{flex:1}}></span><span style={{color:"var(--ink-faint)"}}>{logs.length} lines</span></div>
+              <div className="lb">
+                {logs.map((l, i) => (
+                  <div className="logline" key={i}><span className="ts">{l.ts}</span><span className={"lvl " + l.cls}>{l.lvl}</span><span className="msg">{l.msg}</span></div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === "config" && (
+            <div className="panel"><div className="pt"><Icon name="settings" size={15} color="var(--quiet-cyan)" /> Runtime config</div>
+              <div className="cfg">
+                <div className="row"><span className="key">model</span><span className="val">qwen2.5-vl-32b</span></div>
+                <div className="row"><span className="key">replicas</span><span className="val">8 (min 4, max 16)</span></div>
+                <div className="row"><span className="key">gpu.type</span><span className="val">nvidia-b200</span></div>
+                <div className="row"><span className="key">max_batch_tokens</span><span className="val">16384</span></div>
+                <div className="row"><span className="key">kv_cache</span><span className="val">paged · fp8</span></div>
+                <div className="row"><span className="key">autoscale.target</span><span className="val">ttft_p95 &lt; 60ms</span></div>
+              </div>
+            </div>
+          )}
+
+          {tab === "routes" && (
+            <div className="panel"><div className="pt"><Icon name="network" size={15} color="var(--quiet-cyan)" /> Attached routes</div>
+              <div className="cfg">
+                <div className="row"><span className="key">edge-ingress → fabric-router</span><span className="val" style={{color:"var(--green-text)"}}>healthy · 2.1ms</span></div>
+                <div className="row"><span className="key">fabric-router → gpu-pool</span><span className="val" style={{color:"var(--green-text)"}}>healthy · ecn</span></div>
+                <div className="row"><span className="key">gpu-pool → token-stream</span><span className="val" style={{color:"var(--cyan-text)"}}>streaming · sse</span></div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

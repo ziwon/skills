@@ -39,6 +39,7 @@ from the plugin name in `.claude-plugin/plugin.json`.
 ```
 skills/
 ├── engineering/      # code-work skills
+├── design/           # visual systems, decks, UI artifact skills
 ├── productivity/     # general workflow skills
 └── misc/             # rarely-used utilities
 docs/adr/             # architecture decision records (form: docs/adr/0000-template.md)

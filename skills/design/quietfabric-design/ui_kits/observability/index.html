@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuietFabric — Observability</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .qf-signal { position: absolute; top: 50%; left: 8%; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--quiet-cyan); box-shadow: var(--glow-cyan); transform: translateY(-50%); animation: travel 4.5s linear infinite; }
+  @keyframes travel { 0%{left:8%;opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{left:92%;opacity:0} }
+  .legend { display: flex; gap: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-subtle); }
+  .legend i { width: 10px; height: 2px; border-radius: 2px; }
+  .tg { display: inline-flex; align-items: center; gap: 7px; background: var(--surface-1); border: 1px solid var(--hairline);
+    color: var(--ink-muted); border-radius: var(--r-full); padding: 6px 12px; font-size: 12px; font-family: var(--font-mono); cursor: pointer; }
+  .tg:hover { border-color: var(--hairline-strong); color: var(--ink); }
+</style>
+</head>
+<body class="qf-atmos" data-screen-label="Observability dashboard">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="../icons.jsx"></script>
+<script type="text/babel" src="../charts.jsx"></script>
+<script type="text/babel" src="Widgets.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+const { Sidebar, TopBar, Tile, Panel, InfraRow, RouteTopology, Terminal } = window.QFObs;
+
+const TITLES = {
+  overview: ["Fabric overview", "fabric / overview"],
+  topology: ["Topology", "fabric / topology"],
+  routes: ["Inference routes", "fabric / routes"],
+  gpu: ["GPU pools", "compute / gpu"],
+  serving: ["Model serving", "compute / serving"],
+  storage: ["Storage", "compute / storage"],
+  logs: ["Logs", "operate / logs"],
+  alerts: ["Alerts", "operate / alerts"],
+  settings: ["Settings", "operate / settings"],
+};
+
+const TERM = `<span class="p">$</span> fabric route inspect inference-edge<br>
+<span class="dim"># resolving topology across 3 namespaces…</span><br>
+&nbsp;&nbsp;ingress.kr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok">healthy</span>&nbsp;&nbsp;&nbsp;p50 2.1ms<br>
+&nbsp;&nbsp;router.fabric&nbsp;&nbsp;&nbsp;<span class="ok">healthy</span>&nbsp;&nbsp;&nbsp;credit-fc nominal<br>
+&nbsp;&nbsp;pool.gpu-b200&nbsp;&nbsp;&nbsp;<span class="ok">healthy</span>&nbsp;&nbsp;&nbsp;8/8 scheduled<br>
+<span class="p">$</span> <span class="cur">&nbsp;</span>`;
+
+function App() {
+  const [active, setActive] = useState("overview");
+  const [theme, setTheme] = useState("dark");
+  const toggle = () => { const t = theme === "dark" ? "light" : "dark"; setTheme(t); document.documentElement.setAttribute("data-theme", t); };
+  const [t, crumb] = TITLES[active];
+
+  return (
+    <div className="dash">
+      <Sidebar active={active} setActive={setActive} />
+      <div className="main">
+        <TopBar title={t} crumb={crumb} />
+        <div className="content">
+          <div className="sec-head">
+            <span className="n">01</span><span className="t">Live fabric</span>
+            <span className="grow"></span>
+            <span className="badge ok"><span className="ind"></span>all routes healthy</span>
+            <button className="tg" onClick={toggle}>{theme}</button>
+          </div>
+
+          <div className="grid-4">
+            <Tile value="38" unit="ms" label="TTFT p50" delta="6% vs 24h" dir="down" spark={[40,55,35,60,48,70,52,46]} color="#53D0C5" />
+            <Tile value="126" unit="tok/s" label="TPOT throughput" delta="11% vs 24h" dir="up" spark={[50,62,58,74,66,80,72,78]} color="#6E8BFF" />
+            <Tile value="71" unit="%" label="GPU utilization" delta="stable" dir="up" spark={[60,68,55,72,64,78,71,69]} color="#8B6DFF" />
+            <Tile value="24" unit="q" label="queue depth" delta="3% vs 24h" dir="down" spark={[30,42,38,28,46,34,40,33]} color="#3DDC97" />
+          </div>
+
+          <div className="grid-2">
+            <Panel title="Token throughput" icon="activity" meta="last 12h · tok/s"
+              right={<div className="legend"><span><i style={{background:"#6E8BFF"}}></i>edge</span><span><i style={{background:"#53D0C5"}}></i>fog</span><span><i style={{background:"#8B6DFF"}}></i>cloud</span></div>}>
+              <QFLineChart area unit=""
+                series={[
+                  { data: [62,78,71,96,88,112,104,126,118,132,120,126], color: "#6E8BFF" },
+                  { data: [40,52,48,60,57,72,66,80,74,86,78,84], color: "#53D0C5" },
+                  { data: [20,28,24,34,30,42,38,48,44,52,46,50], color: "#8B6DFF" },
+                ]}
+                xLabels={["","02","","06","","10","","14","","18","","22"]} height={236} />
+            </Panel>
+            <Panel title="Infrastructure" icon="server" meta="control-plane">
+              <InfraRow k="Cluster fabric" sub="cilium · sr-iov · multus" v="400 Gbps" />
+              <InfraRow k="Overlay network" sub="headscale · 4 namespaces" v="ops · infra · svc" />
+              <InfraRow k="Model serving" sub="dual-encoder + vlm" v="edge · fog · cloud" />
+              <InfraRow k="GPU pool" sub="nvidia b200" v="8 / 8 scheduled" />
+              <InfraRow k="Region" sub="gcp asia-northeast3" v="seoul" />
+            </Panel>
+          </div>
+
+          <div className="sec-head"><span className="n">02</span><span className="t">Inference route · live</span></div>
+          <RouteTopology
+            nodes={[{name:"edge-ingress",meta:"kr · 2ms"},{name:"fabric-router",meta:"400G · ecn"},{name:"gpu-pool",meta:"b200 ×8"},{name:"token-stream",meta:"sse · live"}]}
+            caption="Route stable for 142d 06h — last reschedule 11m ago." />
+
+          <div className="grid-2">
+            <Panel title="GPU pool throughput" icon="cpu" meta="tok/s by pool">
+              <QFBarChart data={[126,98,112,74,88]} labels={["b200-a","b200-b","h100-a","h100-b","l40-a"]} color="#6E8BFF" height={224} />
+            </Panel>
+            <Terminal name="fabric@control-plane: ~" lines={TERM} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
