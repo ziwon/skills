@@ -2,6 +2,8 @@
 
 My personal agent skills for real engineering — not vibe coding.
 
+![](./assets/bg-hermes.png)
+
 Small, composable, model-agnostic skills I use to keep an agent aligned, fed with
 feedback, and honest about design. Built on the philosophy of
 [`mattpocock/skills`](https://github.com/mattpocock/skills), kept purely personal.
