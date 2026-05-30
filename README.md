@@ -10,12 +10,23 @@ The principles these skills enforce live in **[AGENTS.md](./AGENTS.md)**.
 
 ## Install
 
-```sh
-# my skills
-npx skills@latest add ziwon/skills
+### Install my skills
 
-# the upstream set I build on (installed separately, not vendored here)
-npx skills@latest add mattpocock/skills
+```sh
+npx skills@latest add ziwon/skills --agent codex claude-code --global --all
+```
+
+Omit `--global` to install into the current project instead.
+
+### Restore optional upstream skills
+
+This repo does not vendor third-party skills. Optional upstream skills are recorded in
+`skills-lock.json`; restore them in a cloned checkout:
+
+```sh
+git clone https://github.com/ziwon/skills.git ~/Workspace/ziwon/skills
+cd ~/Workspace/ziwon/skills
+npx skills@latest experimental_install
 ```
 
 Skills become available in your agent with a `/ziwon:` prefix (e.g. `/ziwon:my-skill`),
