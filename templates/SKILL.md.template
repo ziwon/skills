@@ -1,0 +1,45 @@
+---
+name: skill-name-in-kebab-case
+description: >-
+  One sentence on WHAT this skill does, then the WHEN — the user phrases and
+  contexts that should trigger it. Be a little pushy: agents tend to under-trigger
+  skills, so spell out the situations explicitly. All "when to use" info goes HERE,
+  not in the body.
+# disable-model-invocation: true   # uncomment to make this slash-command-only (no auto-trigger)
+---
+
+# Skill Name
+
+One or two lines on the skill's purpose and the mental model behind it.
+
+## When this runs
+
+Restate the trigger conditions briefly for the agent reading the body. Keep the
+authoritative version in the `description` frontmatter above.
+
+## Procedure
+
+Write the actual instructions as a clear, ordered procedure. Prefer imperative voice.
+
+1. First do X. If X reveals Y, branch to ...
+2. Then do Z, waiting for confirmation before continuing if the step is destructive.
+3. ...
+
+## Guardrails
+
+- What this skill must NOT do.
+- Edge cases and how to handle them.
+
+<!--
+AUTHORING NOTES (delete before shipping):
+- Keep SKILL.md under ~500 lines. If it grows, split detail into a references/ folder
+  and point to it from here ("read references/foo.md when ...").
+- Bundled resources are optional:
+    skill-name/
+    ├── SKILL.md        (required)
+    ├── scripts/        (executable, deterministic steps)
+    ├── references/     (docs loaded on demand)
+    └── assets/         (templates/icons used in output)
+- The description is the primary triggering mechanism. Iterate on it if the skill
+  under- or over-triggers.
+-->

@@ -1,0 +1,12 @@
+{
+  "name": "ziwon",
+  "description": "ziwon's personal agent skills for real engineering. Composable, model-agnostic skills for grilling/alignment, TDD feedback loops, disciplined diagnosis, and fighting codebase entropy. Adapted from mattpocock/skills philosophy.",
+  "version": "0.1.0",
+  "author": {
+    "name": "ziwon",
+    "url": "https://github.com/ziwon"
+  },
+  "repository": "https://github.com/ziwon/skills",
+  "license": "MIT",
+  "keywords": ["skills", "claude-code", "engineering", "tdd", "diagnosis", "productivity"]
+}
