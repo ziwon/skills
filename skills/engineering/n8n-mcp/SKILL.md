@@ -58,12 +58,18 @@ If tools still do not appear, start a new session or restart the gateway:
 
 ## Setup with n8n API management
 
+Aaron's default n8n instance is:
+
+```text
+https://n8n.restack.tech
+```
+
 Only add API access when the user explicitly wants the agent to manage an n8n instance:
 
 ```bash
 hermes mcp add n8n-mcp \
   --command npx \
-  --env MCP_MODE=stdio LOG_LEVEL=error DISABLE_CONSOLE_OUTPUT=true N8N_API_URL=https://your-n8n.example.com N8N_API_KEY=your-api-key \
+  --env MCP_MODE=stdio LOG_LEVEL=error DISABLE_CONSOLE_OUTPUT=true N8N_API_URL=https://n8n.restack.tech N8N_API_KEY=*** \
   --args n8n-mcp
 ```
 
