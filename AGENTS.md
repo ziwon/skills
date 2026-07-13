@@ -55,6 +55,33 @@ non-negotiable.
 - Only write an ADR when a decision is (1) hard to reverse, (2) surprising without context,
   and (3) the result of a real trade-off. Otherwise skip it.
 
+## 5. Unrestricted execution — wide authority, narrow blast radius
+
+Unrestricted/YOLO agent execution is intentional. Approval prompts should not interrupt
+normal worktree-local engineering, but authority is not permission to create an
+unbounded blast radius.
+
+- Proceed without confirmation for edits, tests, builds, dependency installs, local
+  servers, worktree-local cleanup, and ordinary Git commits.
+- Before a remote or infrastructure write, state the exact target, expected side effect,
+  and rollback path. A separate confirmation is not required when I explicitly requested
+  that external action.
+- Ask once before irreversible or unusually destructive actions: deleting persistent
+  data/volumes/namespaces, destructive work outside the active worktree, secret rotation
+  or disclosure, force-push/history rewrite, IAM/firewall/SSH changes, or destroy
+  operations.
+- Never print complete environment dumps, auth files, tokens, Kubernetes Secret values,
+  database DSNs with credentials, or shell traces containing secrets. Inject secrets only
+  into the command that needs them and keep them out of persistent shell startup files.
+- Before destructive filesystem work, resolve and show the absolute target, verify its
+  mount and repository boundary, inspect dirty/untracked state, and establish a recovery
+  path. Treat `/`, `$HOME`, `/data`, `/cache`, and workspace parents as protected roots.
+- Keep confidential repository content out of web queries, public issues, paste services,
+  telemetry, and third-party tools unless disclosure was explicitly approved.
+
+Use the `orca-unrestricted-guardrails` skill for the detailed operating procedure and a
+copyable per-repository policy template.
+
 ---
 
 ## My conventions (edit freely — this is a seed)
