@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "computer-use": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "skillPath": "skills/computer-use/SKILL.md",
+      "computedHash": "0da0140e79b9ea68f72a740b56bd1f5f74f70ec22a49d44a1f70c5d01fb58b95"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -12,6 +18,18 @@
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
       "computedHash": "e458661cbf196a3bf4f175d113e272db47889af7f236f78bebfcad4054a5d241"
+    },
+    "orca-cli": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "skillPath": "skills/orca-cli/SKILL.md",
+      "computedHash": "1e675c5506edb691a73845c446ea2aadfe3698b98d668c1dd0620259087dcd3c"
+    },
+    "orchestration": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "skillPath": "skills/orchestration/SKILL.md",
+      "computedHash": "ceb3826747be57698412fe50b068f2a98ac0062828a546b55ef28f9ca0f486ad"
     },
     "receiving-code-review": {
       "source": "obra/superpowers",

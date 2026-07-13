@@ -5,4 +5,5 @@ node_modules/
 .idea/
 .vscode/
 .claude/settings.local.json
+.claude/skills/
 .agents/skills/
