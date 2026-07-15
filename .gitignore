@@ -7,3 +7,6 @@ node_modules/
 .claude/settings.local.json
 .claude/skills/
 .agents/skills/
+.antigravitycli/
+__pycache__/
+*.pyc
