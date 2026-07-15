@@ -1,156 +1,159 @@
 #!/usr/bin/env python3
-"""
-grok-headless.py
-Python에서 Grok Build headless를 OpenAI-compatible client처럼 사용하는 예제.
+"""Minimal async wrapper for Grok Build headless JSON/NDJSON modes."""
 
-특징:
-- streaming-json 완전 지원 (async generator)
-- session ID 자동 관리
-- 안전한 기본 플래그 포함
-"""
+from __future__ import annotations
 
 import asyncio
 import json
 import os
-import subprocess
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Any
+
+
+class GrokError(RuntimeError):
+    """Raised when the Grok subprocess fails or emits malformed output."""
 
 
 class GrokHeadless:
-    def __init__(self, cwd: str = ".", model: str = "grok-build"):
-        self.cwd = cwd
+    def __init__(self, cwd: str | Path = ".", model: str = "grok-build") -> None:
+        self.cwd = str(Path(cwd).resolve())
         self.model = model
-        self.env = {**os.environ}
+        self.env = os.environ.copy()
 
-    def _build_cmd(
+    def _command(
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        yolo: bool = False,
-        output_format: str = "json",
+        output_format: str,
+        resume_session_id: str | None = None,
+        bypass_permissions: bool = False,
         extra_args: list[str] | None = None,
     ) -> list[str]:
-        cmd = [
+        command = [
             "grok",
-            "-p", prompt,
-            "-m", self.model,
-            "--cwd", self.cwd,
-            "--output-format", output_format,
+            "-p",
+            prompt,
+            "--model",
+            self.model,
+            "--cwd",
+            self.cwd,
+            "--output-format",
+            output_format,
             "--no-auto-update",
         ]
-        if session_id:
-            cmd += ["-s", session_id]
-        if yolo:
-            cmd += ["--yolo"]
+        if resume_session_id:
+            command.extend(["--resume", resume_session_id])
+        if bypass_permissions:
+            command.extend(["--permission-mode", "bypassPermissions"])
         if extra_args:
-            cmd += extra_args
-        return cmd
+            command.extend(extra_args)
+        return command
 
     async def create(
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        yolo: bool = False,
+        resume_session_id: str | None = None,
+        bypass_permissions: bool = False,
         extra_args: list[str] | None = None,
-    ) -> dict:
-        """일반 JSON 모드 (한 번에 전체 결과 받기)"""
-        cmd = self._build_cmd(
-            prompt,
-            session_id=session_id,
-            yolo=yolo,
-            output_format="json",
-            extra_args=extra_args,
-        )
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
+    ) -> dict[str, Any]:
+        """Run once and return Grok's outer JSON result object."""
+        process = await asyncio.create_subprocess_exec(
+            *self._command(
+                prompt,
+                output_format="json",
+                resume_session_id=resume_session_id,
+                bypass_permissions=bypass_permissions,
+                extra_args=extra_args,
+            ),
             env=self.env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            message = stderr.decode(errors="replace").strip()
+            raise GrokError(f"grok exited {process.returncode}: {message}")
 
-        if proc.returncode != 0:
-            raise RuntimeError(f"Grok failed (code {proc.returncode}): {stderr.decode()}")
-
-        data = json.loads(stdout.decode() or "{}")
-        return {
-            "text": data.get("text", ""),
-            "session_id": data.get("sessionId"),
-            "stop_reason": data.get("stopReason"),
-        }
+        try:
+            result = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            raise GrokError("grok emitted malformed JSON") from exc
+        if not isinstance(result, dict) or not isinstance(result.get("text"), str):
+            raise GrokError("grok result is missing the text field")
+        return result
 
     async def stream(
         self,
         prompt: str,
         *,
-        session_id: Optional[str] = None,
-        yolo: bool = False,
+        resume_session_id: str | None = None,
+        bypass_permissions: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[dict]:
-        """streaming-json 모드 (실시간 청크 + thought 수신)"""
-        cmd = self._build_cmd(
-            prompt,
-            session_id=session_id,
-            yolo=yolo,
-            output_format="streaming-json",
-            extra_args=extra_args,
-        )
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Yield forward-compatible streaming-json events until the process exits."""
+        process = await asyncio.create_subprocess_exec(
+            *self._command(
+                prompt,
+                output_format="streaming-json",
+                resume_session_id=resume_session_id,
+                bypass_permissions=bypass_permissions,
+                extra_args=extra_args,
+            ),
             env=self.env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        if process.stdout is None or process.stderr is None:
+            raise GrokError("failed to capture grok output")
 
-        if not proc.stdout:
-            return
-
-        async for raw_line in proc.stdout:
-            line = raw_line.decode().strip()
-            if not line:
-                continue
+        stderr_task = asyncio.create_task(process.stderr.read())
+        saw_terminal_event = False
+        async for raw_line in process.stdout:
             try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-
+                event = json.loads(raw_line)
+            except json.JSONDecodeError as exc:
+                process.kill()
+                await process.wait()
+                await stderr_task
+                raise GrokError("grok emitted malformed streaming JSON") from exc
+            if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+                process.kill()
+                await process.wait()
+                await stderr_task
+                raise GrokError("grok emitted an invalid streaming event")
             yield event
+            if event["type"] in {"end", "error"}:
+                saw_terminal_event = True
 
-            if event.get("type") == "end":
-                break
+        stderr = (await stderr_task).decode(errors="replace").strip()
+        return_code = await process.wait()
+        if return_code != 0:
+            raise GrokError(f"grok exited {return_code}: {stderr}")
+        if not saw_terminal_event:
+            raise GrokError("grok stream ended without an end/error event")
 
-        await proc.wait()
 
-
-# === Usage Examples ===
-
-async def main():
+async def main() -> None:
     client = GrokHeadless(cwd=".")
 
-    # 1. Regular call + session reuse
     result = await client.create(
-        "Summarize the architecture of this project in one paragraph.",
-        session_id="demo-2026-06",
+        "Summarize this project in one paragraph without editing files.",
+        extra_args=["--tools", "read_file,grep,list_dir", "--max-turns", "12"],
     )
-    print("=== Normal ===")
-    print(result["text"][:300])
-    print("Session:", result["session_id"])
+    print(result["text"])
+    print("session:", result["sessionId"])
 
-    # 2. Streaming (including thought tokens)
-    print("\n=== Streaming ===")
     async for event in client.stream(
-        "Scaffold a simple Python FastAPI project.",
-        yolo=True,
-        extra_args=["--allow", "Write(**/*.py)"],
+        "Continue with a concise risk review.",
+        resume_session_id=result["sessionId"],
+        extra_args=["--tools", "read_file,grep,list_dir", "--max-turns", "12"],
     ):
-        if event.get("type") == "text":
-            print(event["data"], end="", flush=True)
-        elif event.get("type") == "thought":
-            print(f"\n[thought] {event['data']}\n", flush=True)
-        elif event.get("type") == "end":
-            print(f"\n[done] session={event.get('sessionId')}")
+        if event["type"] == "text":
+            print(event.get("data", ""), end="", flush=True)
+        elif event["type"] == "end":
+            print(f"\nfinished: {event.get('sessionId')}")
 
 
 if __name__ == "__main__":

@@ -1,50 +1,56 @@
 #!/usr/bin/env bash
-# auto-refactor.sh
-# Run once in the morning — Grok safely performs large-scale refactoring
-#
-# Usage:
-#   ./auto-refactor.sh "Replace all console.log calls with a proper logger"
-#   ./auto-refactor.sh "Migrate src/components/ to React 19"
+# auto-refactor.sh — bounded Grok refactor example for a trusted disposable worktree.
 
 set -euo pipefail
 
-TASK="${1:-Perform large-scale code quality improvements. Remove unnecessary any types, eliminate duplication, and apply modern best practices.}"
+TASK="${1:-Refactor the requested area without changing public behavior.}"
+LOG_DIR="${LOG_DIR:-logs}"
+mkdir -p "$LOG_DIR"
+RESULT_FILE="$LOG_DIR/auto-refactor-$(date +%F-%H%M%S).json"
 
-SESSION="auto-refactor-$(date +%F-%H%M)"
-LOGFILE="logs/auto-refactor-$(date +%F).log"
-mkdir -p logs
+prompt=$(cat <<EOF
+$TASK
 
-echo "[$(date)] Starting headless refactor session: $SESSION" | tee -a "$LOGFILE"
+Boundaries:
+- Modify only files under src/, lib/, or packages/.
+- Do not change package manifests, lockfiles, .env files, credentials, or CI.
+- Do not push, publish, deploy, or delete files.
+- Run focused tests using existing project commands.
+- End with a concise summary of changed files, verification, and residual risks.
+EOF
+)
 
-# Safety profile: only allow edits under src/, lib/, packages/. Completely block rm and sudo.
-grok -p "$TASK
-
-Rules:
-- Only modify files under src/, lib/, or packages/
-- Never touch package.json, lockfiles, or .env* files
-- Keep all changes in small, conventional-commit-sized units
-- Output a final JSON summary at the end
-
-" \
-  --yolo \
-  --allow "Edit(src/**),Edit(lib/**),Edit(packages/**)" \
-  --allow "Write(src/**),Write(lib/**),Write(packages/**)" \
-  --allow "Bash(git *)" \
-  --deny "Bash(rm*)" \
-  --deny "Bash(sudo *)" \
-  --deny "Bash(curl * | sh)" \
+set +e
+grok -p "$prompt" \
+  --permission-mode bypassPermissions \
+  --allow 'Edit(src/**)' \
+  --allow 'Edit(lib/**)' \
+  --allow 'Edit(packages/**)' \
+  --allow 'Write(src/**)' \
+  --allow 'Write(lib/**)' \
+  --allow 'Write(packages/**)' \
+  --allow 'Bash(git diff*)' \
+  --allow 'Bash(git status*)' \
+  --deny 'Bash(rm*)' \
+  --deny 'Bash(sudo*)' \
+  --deny 'Bash(git push*)' \
+  --deny 'Read(**/.env*)' \
+  --disallowed-tools 'web_search,web_fetch,Agent' \
   --max-turns 60 \
+  --check \
   --output-format json \
-  -s "$SESSION" \
-  2>&1 | tee -a "$LOGFILE"
+  --no-auto-update >"$RESULT_FILE"
+exit_code=$?
+set -e
 
-EXIT_CODE=$?
-
-if [ $EXIT_CODE -eq 0 ]; then
-  echo "[$(date)] Refactor completed successfully (session: $SESSION)" | tee -a "$LOGFILE"
-else
-  echo "[$(date)] Refactor failed with code $EXIT_CODE. Resume with:" | tee -a "$LOGFILE"
-  echo "  grok -p 'Continue the previous work and revert any dangerous changes' -s $SESSION --yolo" | tee -a "$LOGFILE"
+if [[ $exit_code -ne 0 ]]; then
+  printf 'Grok failed with exit code %s; inspect %s and git status.\n' \
+    "$exit_code" "$RESULT_FILE" >&2
+  exit "$exit_code"
 fi
 
-exit $EXIT_CODE
+session_id="$(jq -er '.sessionId' "$RESULT_FILE")"
+jq -er '.text' "$RESULT_FILE"
+printf 'Session: %s\nResult: %s\n' "$session_id" "$RESULT_FILE" >&2
+printf 'Resume after inspecting the worktree: grok -p %q --resume %q --output-format json\n' \
+  'Continue from the verified current state.' "$session_id" >&2

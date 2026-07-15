@@ -1,19 +1,16 @@
-# .github/workflows/nightly-code-review.yml
-# Runs every night at 2am UTC. Grok performs code quality + security review and posts results as GitHub issues.
-
+# Reference workflow: requires a trusted self-hosted runner with grok and jq preinstalled.
 name: Nightly Grok Code Review
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # Every day at 2am UTC
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 jobs:
   grok-review:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     permissions:
       contents: read
-      pull-requests: write
       issues: write
 
     steps:
@@ -21,46 +18,64 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Grok Build CLI
+      - name: Verify tools
         run: |
-          # Replace with the actual installation command for the released binary
-          curl -fsSL https://grok.build/install.sh | sh
-          echo "$HOME/.grok/bin" >> $GITHUB_PATH
+          grok --version
+          jq --version
 
-      - name: Run Grok Nightly Review (read-only, no yolo)
-        id: review
+      - name: Run bounded read-only review
         env:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
         run: |
-          grok -p "
-            Review the recent changes in this repository (last 24 hours)
-            from the perspectives of code quality, security, performance, and developer experience.
+          grok -p '
+            Review commits from the last 24 hours for concrete correctness,
+            security, performance, and maintainability risks.
 
-            - Limit to at most 5 critical risks
-            - For each item include the file path and concrete reasoning
-            - Clearly distinguish between 'must fix' and 'suggestion'
-
-            Output ONLY the following JSON at the very end:
-            {
-              \"critical_issues\": [...],
-              \"suggestions\": [...],
-              \"overall_health\": \"good|needs_attention|critical\"
-            }
-          " \
-            --output-format json \
-            --disallowed-tools "run_terminal_cmd,search_replace,write_file" \
+            Cite file paths and evidence. Return only JSON with this shape:
+            {"critical_issues":[],"suggestions":[],"overall_health":"good|needs_attention|critical"}
+          ' \
+            --tools 'read_file,grep,list_dir' \
+            --disallowed-tools 'run_terminal_cmd,search_replace,write_file,Agent' \
             --max-turns 25 \
-            --no-auto-update \
-            2>&1 | tee review-output.json
+            --output-format json \
+            --no-auto-update > grok-result.json
 
-      - name: Post Review to GitHub
-        if: always()
+          jq -e '.stopReason == "EndTurn" and (.sessionId | type == "string")' grok-result.json
+          jq -er '.text' grok-result.json > review.json
+          jq -e '
+            (.critical_issues | type == "array") and
+            (.suggestions | type == "array") and
+            (.overall_health | IN("good", "needs_attention", "critical"))
+          ' review.json
+
+      - name: Create issue when attention is needed
+        if: success()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Parse with jq and post as a GitHub issue (real script should be more sophisticated)
-          SUMMARY=$(jq -r '.text' review-output.json | head -c 8000)
+          health="$(jq -r '.overall_health' review.json)"
+          if [[ "$health" == "good" ]]; then
+            echo "No issue created: overall health is good."
+            exit 0
+          fi
+
+          body_file="$(mktemp)"
+          {
+            echo '```json'
+            jq . review.json
+            echo '```'
+          } > "$body_file"
           gh issue create \
-            --title "Nightly Grok Review - $(date +%F)" \
-            --body "$SUMMARY" \
-            --label "grok-review,automated" || true
+            --title "Nightly Grok review - $(date +%F)" \
+            --body-file "$body_file"
+
+      - name: Upload review artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grok-review-${{ github.run_id }}
+          path: |
+            grok-result.json
+            review.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,90 +1,96 @@
 # Headless Grok Automation Cheatsheet
 
-## Most Useful Flags (as of 2026-06)
+Version-check first:
 
-| Flag                        | Short | When to use                                              | Danger level |
-|----------------------------|-------|----------------------------------------------------------|--------------|
-| `-p, --single <prompt>`    | -p    | Enter headless mode (required)                           | -            |
-| `--output-format json`     |       | Machine-parseable output (includes sessionId)            | Safe         |
-| `--output-format streaming-json` | | Real-time streaming + thought observation          | Safe         |
-| `--yolo`                   |       | Auto-approve all tool calls (use with extreme caution)   | ☠️ Nuclear   |
-| `-s, --session-id <id>`    | -s    | Maintain state across calls (required for CI/multi-step) | Safe         |
-| `--resume <id>`            | -r    | Resume a specific session exactly                        | Safe         |
-| `-c, --continue`           |       | Continue the most recent session in current directory    | Safe         |
-| `--allow "Bash(...)"`      |       | Grant least-privilege permissions (repeat as needed)     | Safe         |
-| `--deny "Edit(**/secret/**)"` |   | Block specific paths or commands                         | Safe         |
-| `--disallowed-tools "run_terminal_cmd"` | | Remove a tool entirely                           | Safe         |
-| `--max-turns 30`           |       | Prevent infinite loops                                   | Safe         |
-| `--no-plan`                |       | Force-disable plan mode (for simple tasks only)          | Medium       |
-| `--no-memory`              |       | Disable cross-session memory (cost/privacy)              | Safe         |
-| `--no-auto-update`         |       | Skip update checks in CI                                 | Safe         |
-
-## Commonly Used Prompt Contracts
-
-### 1. JSON Only (Most Important)
-```
-After completing the task, output **only** the following JSON on the final line.
-Do not add any other text.
-
-{
-  "status": "success|partial|failed",
-  "summary": "...",
-  "files_changed": [...],
-  "risks": [...],
-  "next_action": "..."
-}
-```
-
-### 2. Step-by-step + Final JSON
-```
-1. First create a plan.
-2. Execute step by step and record the result of each step.
-3. Output only the JSON format above at the very end.
-```
-
-### 3. Plan-only (For complex/ambiguous work)
-```
-Write a detailed execution plan for this task into plan.md only.
-Do not modify any real source files. When the plan is complete, reply with exactly "PLAN_READY".
-```
-
-## Safe Invocation Patterns (Copy-Paste Ready)
-
-**Read-only review**
 ```bash
-grok -p "..." \
-  --disallowed-tools "run_terminal_cmd,search_replace,write_file" \
+grok --version
+grok --help
+```
+
+The installed `~/.grok/docs/user-guide/14-headless-mode.md` is the source of truth for the
+installed binary.
+
+## Current core flags
+
+| Flag | Meaning |
+|---|---|
+| `-p, --single <prompt>` | Run one headless prompt |
+| `--output-format json` | Outer result object with `.text`, `sessionId`, usage metadata |
+| `--output-format streaming-json` | NDJSON events (`text`, `thought`, `end`, `error`, …) |
+| `--resume <id>` / `--continue` | Continue an existing/recent session |
+| `--session-id <uuid>` | Create a **new** session with a client-chosen UUID; not a name |
+| `--tools a,b,c` | Keep only selected built-in tools |
+| `--disallowed-tools a,b` | Remove tools; supports `Agent` entries |
+| `--allow RULE` / `--deny RULE` | Permission rules; repeatable, deny wins |
+| `--permission-mode bypassPermissions` | Unattended approval bypass (`--yolo` alias) |
+| `--max-turns N` | Bound main-agent turns |
+| `--check` | Append a self-verification loop |
+| `--no-subagents` | Disable subagent spawning |
+| `--disable-web-search` | Remove built-in web search/fetch |
+| `--worktree [name]` | Use an isolated git worktree |
+| `--no-memory` | Disable cross-session memory |
+| `--no-auto-update` | Suppress update checks for the invocation |
+
+## Read-only review
+
+```bash
+grok -p 'Review this repository. Do not edit.' \
+  --tools 'read_file,grep,list_dir' \
+  --disallowed-tools 'Agent' \
+  --output-format json \
+  --max-turns 20
+```
+
+## Bounded editor
+
+```bash
+grok -p 'Edit only src/auth and run focused tests.' \
+  --permission-mode bypassPermissions \
+  --allow 'Edit(src/auth/**)' \
+  --allow 'Write(src/auth/**)' \
+  --allow 'Bash(uv run pytest*)' \
+  --deny 'Bash(rm*)' \
+  --deny 'Bash(sudo*)' \
+  --deny 'Read(**/.env*)' \
+  --max-turns 30 \
   --output-format json
 ```
 
-**Allow edits only under specific directories**
+## Resume correctly
+
 ```bash
-grok -p "Refactor only under src/" \
-  --yolo \
-  --allow "Edit(src/**),Write(src/**),Bash(git *)" \
-  --deny "Bash(rm -rf *)" \
-  -s "refactor-$(date +%F)"
+first="$(grok -p 'Review the change' --output-format json)"
+sid="$(jq -r '.sessionId' <<<"$first")"
+grok -p 'Continue with security review' --resume "$sid" --output-format json
 ```
 
-**Allow only npm/pnpm/yarn scripts**
+Do not use a friendly string with `-s`; `--session-id` requires a new UUID.
+
+## Parse model JSON correctly
+
+When the model is instructed to emit JSON, it is encoded inside the outer `.text` string:
+
 ```bash
-grok -p "..." \
-  --yolo \
-  --allow 'Bash(npm *),Bash(pnpm *),Bash(yarn *)' \
-  --deny 'Bash(sudo *)'
+outer="$(grok -p 'Return only {"status":"ok"}' --output-format json)"
+inner="$(jq -r '.text' <<<"$outer")"
+jq -e '.status == "ok"' <<<"$inner"
 ```
 
-## Cost & Time Control
+## ACP
 
-- For large refactors: combine `--max-turns 40` + `-s`
-- For repeated work: use `--no-memory` + explicit context passing
-- Use streaming-json so you can observe thoughts and kill early if needed
+```bash
+grok agent --model grok-build stdio
+# only in an isolated trusted environment
+grok agent --always-approve stdio
+```
+
+Parent flags go before `stdio`. Headless-only flags do not belong to the `stdio` subcommand.
 
 ## Debugging
 
 ```bash
-GROK_LOG_FILE=1 GROK_LOG_FILTER=debug \
-  grok -p "..." --output-format json 2> grok-debug.log
+GROK_LOG_FILE="$PWD/grok-debug.log" RUST_LOG=debug \
+  grok -p '...' --output-format json 2>grok-stderr.log
 ```
 
-Log files are written to `~/.grok/logs/`
+Keep stderr separate from JSON stdout and never log credentials or private source content.
