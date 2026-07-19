@@ -49,6 +49,24 @@
       "skillPath": "skills/productivity/grill-me/SKILL.md",
       "computedHash": "784f0dbb7403b0f00324bce9a112f715342777a0daee7bbb7385f9c6f0a170ea"
     },
+    "humanize": {
+      "source": "epoko77-ai/im-not-ai",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/humanize/SKILL.md",
+      "computedHash": "efdaf8cb1632680f37ab992679ec669308a1d297daee44edf51b496a106f081d"
+    },
+    "humanize-korean": {
+      "source": "epoko77-ai/im-not-ai",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/humanize-korean/SKILL.md",
+      "computedHash": "f5bc3ef62b0a38ba9c8ba976c610e6f943984a7b368ce5c663902580cc94d7e4"
+    },
+    "humanize-redo": {
+      "source": "epoko77-ai/im-not-ai",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/humanize-redo/SKILL.md",
+      "computedHash": "790abcc9e39f0bd7ea3e03dab671ab72348831bdd199814aea45079499841d11"
+    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
